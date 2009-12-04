@@ -2,18 +2,16 @@
 
 class GistExtras extends Plugin
 {
-    const VERSION = '0.0.1';
-
     public function info()
     {
         return array(
             'url' => 'http://andrewhutchings.com',
             'name' => 'Gist Extras',
-            'description'   => 'Caches and embeds gists in post content.',
+            'description' => 'Caches and embeds gists in post content.',
             'license' => 'Apache License 2.0',
             'author' => 'Andrew Hutchings',
             'authorurl' => 'http://andrewhutchings.com',
-            'version' => self::VERSION
+            'version' => '0.0.2'
         );
     }
 
@@ -55,6 +53,10 @@ class GistExtras extends Plugin
         // remove line breaks
         $gist = preg_replace("/[\n\r]/", '', $gist);
 
+        if (Options::get('gistextras__usecustomcss')) {
+            $gist = str_replace('http://gist.github.com/stylesheets/gist/embed.css', Options::get('gistextras__customcssurl'), $gist);
+        }
+
         return $gist;
     }
 
@@ -66,13 +68,18 @@ class GistExtras extends Plugin
 
         for ($i = 0, $n = count($gists[0]); $i < $n; $i++) {
 
-            if (Cache::has($gists[1][$i])) {
-                $gist = Cache::get($gists[1][$i]);
-            } else {
-                if ($gist = RemoteRequest::get_contents($gists[1][$i])) {
-                    $gist = $this->process_gist($gist);
-                    Cache::set($gists[1][$i], $gist, 86400); // cache for 1 day
+            if (Options::get('gistextras__cachegists')) {
+                if (Cache::has($gists[1][$i])) {
+                    $gist = Cache::get($gists[1][$i]);
+                } else {
+                    if ($gist = RemoteRequest::get_contents($gists[1][$i])) {
+                        $gist = $this->process_gist($gist);
+                        Cache::set($gists[1][$i], $gist, 86400); // cache for 1 day
+                    }
                 }
+            } else {
+                $gist = RemoteRequest::get_contents($gists[1][$i]);
+                $gist = $this->process_gist($gist);
             }
 
             // replace the script tag
@@ -80,6 +87,31 @@ class GistExtras extends Plugin
         }
 
         return $text;
+    }
+
+    public function filter_plugin_config($actions, $plugin_id)
+    {
+        if ($plugin_id == $this->plugin_id()) {
+            $actions[]= _t('Configure');
+        }
+
+        return $actions;
+    }
+
+    public function action_plugin_ui($plugin_id, $action)
+    {
+        if ( $plugin_id == $this->plugin_id() ) {
+            switch ($action) {
+                case _t('Configure'):
+                    $form = new FormUI(strtolower(get_class($this)));
+                    $form->append('checkbox', 'cache', 'gistextras__cachegists', _t('Cache Gists'));
+                    $form->append('checkbox', 'usecustomcss', 'gistextras__usecustomcss', _t('Use custom CSS'));
+                    $form->append('text', 'csspath', 'gistextras__customcssurl', _t('Custom CSS URL'));
+                    $form->append('submit', 'save', 'Save');
+                    $form->out();
+                break;
+            }
+        }
     }
 }
 
