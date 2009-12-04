@@ -7,7 +7,7 @@ class GistExtras extends Plugin
         return array(
             'url' => 'http://andrewhutchings.com',
             'name' => 'Gist Extras',
-            'description' => 'Caches and embeds gists in post content.',
+            'description' => 'Embeds gists in post content, and allows for the use of custom CSS.',
             'license' => 'Apache License 2.0',
             'author' => 'Andrew Hutchings',
             'authorurl' => 'http://andrewhutchings.com',
