@@ -20,14 +20,11 @@ class GistExtras extends Plugin
         Update::add( 'GistExtras', 'A6A9D42C-2F4F-11DE-BB63-026155D89593', $this->info->version );
     }
 
-    public function filter_post_content_out($content)
+    public function alias()
     {
-        return $this->embed_gists($content);
-    }
-
-    public function filter_post_excerpt_out($excerpt)
-    {
-        return $this->embed_gists($excerpt);
+        return array(
+            'embed_gists' => array('filter_post_content_out', 'filter_post_excerpt_out')
+        );
     }
 
     public function set_priorities()
@@ -60,11 +57,18 @@ class GistExtras extends Plugin
         return $gist;
     }
 
-    private function embed_gists($text)
+    public function embed_gists($content)
     {
         $gists_regex = '/<script[^>]+src="(http:\/\/gist.github.com\/[^"]+)"[^>]*><\/script>/i';
 
-        preg_match_all($gists_regex, $text, $gists);
+        // remove gists from multiple-post templates
+        if (Options::get('gistextras__removefrommultiple')) {
+            if (!in_array(URL::get_matched_rule()->name, array('display_entry', 'display_page'))) {
+                 return preg_replace($gists_regex, '', $content);
+            }
+        }
+
+        preg_match_all($gists_regex, $content, $gists);
 
         for ($i = 0, $n = count($gists[0]); $i < $n; $i++) {
 
@@ -83,10 +87,10 @@ class GistExtras extends Plugin
             }
 
             // replace the script tag
-            $text = str_replace($gists[0][$i], $gist, $text);
+            $content = str_replace($gists[0][$i], $gist, $content);
         }
 
-        return $text;
+        return $content;
     }
 
     public function filter_plugin_config($actions, $plugin_id)
@@ -104,9 +108,10 @@ class GistExtras extends Plugin
             switch ($action) {
                 case _t('Configure'):
                     $form = new FormUI(strtolower(get_class($this)));
-                    $form->append('checkbox', 'cache', 'gistextras__cachegists', _t('Cache Gists'));
+                    $form->append('checkbox', 'cachegists', 'gistextras__cachegists', _t('Cache Gists'));
+                    $form->append('checkbox', 'removefrommultiple', 'gistextras__removefrommultiple', _t('Remove Gists from multiple-post templates.'));
                     $form->append('checkbox', 'usecustomcss', 'gistextras__usecustomcss', _t('Use custom CSS'));
-                    $form->append('text', 'csspath', 'gistextras__customcssurl', _t('Custom CSS URL'));
+                    $form->append('text', 'customcssurl', 'gistextras__customcssurl', _t('Custom CSS URL'));
                     $form->append('submit', 'save', 'Save');
                     $form->out();
                 break;
